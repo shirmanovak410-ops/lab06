@@ -27,7 +27,5 @@ if(BUILD_TESTS)
     add_test(NAME check COMMAND check)
 endif()
 
-include(CPackConfig.cmake)
-
-# Подключение CPack
+# Подключаем CPack (только один раз)
 include(CPackConfig.cmake)
