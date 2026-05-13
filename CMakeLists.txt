@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(print)
 
+# Версионирование (нужно для CPack)
 set(PRINT_VERSION_MAJOR 0)
 set(PRINT_VERSION_MINOR 1)
 set(PRINT_VERSION_PATCH 0)
@@ -13,19 +14,47 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_compile_options(-Wno-unused-variable -Wno-maybe-uninitialized -Wno-error)
 
+option(BUILD_EXAMPLES "Build examples" OFF)
 option(BUILD_TESTS "Build tests" OFF)
 
-add_library(print STATIC sources/print.cpp)
-target_include_directories(print PUBLIC include)
+add_library(print STATIC ${CMAKE_CURRENT_SOURCE_DIR}/sources/print.cpp)
 
-if(BUILD_TESTS)
-    enable_testing()
-    add_subdirectory(third-party/gtest)
-    add_executable(check tests/test1.cpp)
-    target_compile_options(check PRIVATE -Wno-unused-variable)
-    target_link_libraries(check print gtest_main)
-    add_test(NAME check COMMAND check)
+target_include_directories(print PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+
+if(BUILD_EXAMPLES)
+  file(GLOB EXAMPLE_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/examples/*.cpp")
+  foreach(EXAMPLE_SOURCE ${EXAMPLE_SOURCES})
+    get_filename_component(EXAMPLE_NAME ${EXAMPLE_SOURCE} NAME_WE)
+    add_executable(${EXAMPLE_NAME} ${EXAMPLE_SOURCE})
+    target_link_libraries(${EXAMPLE_NAME} print)
+    install(TARGETS ${EXAMPLE_NAME}
+      RUNTIME DESTINATION bin
+    )
+  endforeach()
 endif()
 
-# Подключаем CPack (только один раз)
+if(BUILD_TESTS)
+  enable_testing()
+  add_subdirectory(third-party/gtest)
+  target_compile_options(gtest PRIVATE -Wno-error)
+  target_compile_options(gtest_main PRIVATE -Wno-error)
+  file(GLOB ${PROJECT_NAME}_TEST_SOURCES tests/*.cpp)
+  add_executable(check ${${PROJECT_NAME}_TEST_SOURCES})
+  target_link_libraries(check ${PROJECT_NAME} gtest_main)
+  add_test(NAME check COMMAND check)
+endif()
+
+install(TARGETS print
+    EXPORT print-config
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+)
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION include)
+install(EXPORT print-config DESTINATION cmake)
+
+# Подключение CPack
 include(CPackConfig.cmake)

@@ -1,1 +1,2 @@
-lab library
+Print library is a static C++ library for printing strings to console.
+It provides simple and efficient way to output text with version control.
