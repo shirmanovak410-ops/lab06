@@ -5,24 +5,33 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install CMake and compiler
-      run: sudo apt-get update && sudo apt-get install -y cmake g++
-    
-    - name: Configure
-      run: cmake -S . -B _build -DCMAKE_CXX_STANDARD=11
-    
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Check environment
+      run: |
+        echo "=== System info ==="
+        uname -a
+        which cmake || echo "CMake not in PATH"
+        cmake --version || echo "CMake not installed"
+        g++ --version
+
+    - name: Configure CMake
+      run: cmake -S . -B _build
+
     - name: Build
       run: cmake --build _build
-    
-    - name: Run example1
-      run: ./_build/example1
-    
-    - name: Run example2
-      run: ./_build/example2
-    
-    - name: Show log
-      run: cat log.txt || echo "No log file"
+
+    - name: Create package
+      run: |
+        cd _build
+        cpack -G "TGZ"
+
+    - name: Upload package
+      uses: actions/upload-artifact@v3
+      with:
+        name: print-package
+        path: _build/*.tar.gz
