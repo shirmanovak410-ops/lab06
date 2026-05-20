@@ -55,6 +55,7 @@ install(TARGETS print
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION include)
 install(EXPORT print-config DESTINATION cmake)
 
+
 add_subdirectory(formatter_lib)
 add_subdirectory(formatter_ex_lib)
 add_subdirectory(solver_lib)
@@ -63,12 +64,18 @@ add_executable(solver solver_application/solver.cpp)
 target_link_libraries(solver formatter_ex solver_lib)
 
 install(TARGETS solver RUNTIME DESTINATION bin)
-
 set(CPACK_PACKAGE_NAME "solver")
 set(CPACK_PACKAGE_VERSION "1.0.0")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Quadratic equation solver")
 set(CPACK_PACKAGE_CONTACT "shirmanovak410-ops@example.com")
 set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/DESCRIPTION_SOLVER")
-set(CPACK_GENERATOR "TGZ;DEB;RPM")
+
+if(APPLE)
+  set(CPACK_GENERATOR "DragNDrop;TGZ")
+elseif(WIN32)
+  set(CPACK_GENERATOR "ZIP")
+else()
+  set(CPACK_GENERATOR "TGZ;DEB;RPM")
+endif()
 
 include(CPack)
