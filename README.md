@@ -395,7 +395,7 @@ Total 0 (delta 0), reused 0 (delta 0), pack-reused 0 (from 0)
 To https://github.com/shirmanovak410-ops/lab06
  * [new tag]         v2.2.0 -> v2.2.0
 ```
-6)В релизе v2.2.0 появились:
+6) В релизе v2.2.0 появились:
 
 solver-1.0.0-Linux.tar.gz
 
