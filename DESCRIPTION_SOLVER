@@ -1,0 +1,7 @@
+Solver for quadratic equations.
+
+Usage: solver
+Enter coefficients a, b, c (space-separated)
+Example: 1 -3 2
+
+The program solves ax² + bx + c = 0 and outputs x1 and x2.

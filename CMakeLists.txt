@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 project(print)
 
-# Версионирование (нужно для CPack)
 set(PRINT_VERSION_MAJOR 0)
 set(PRINT_VERSION_MINOR 1)
 set(PRINT_VERSION_PATCH 0)
@@ -56,5 +55,20 @@ install(TARGETS print
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION include)
 install(EXPORT print-config DESTINATION cmake)
 
-# Подключение CPack
-include(CPackConfig.cmake)
+add_subdirectory(formatter_lib)
+add_subdirectory(formatter_ex_lib)
+add_subdirectory(solver_lib)
+
+add_executable(solver solver_application/solver.cpp)
+target_link_libraries(solver formatter_ex solver_lib)
+
+install(TARGETS solver RUNTIME DESTINATION bin)
+
+set(CPACK_PACKAGE_NAME "solver")
+set(CPACK_PACKAGE_VERSION "1.0.0")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Quadratic equation solver")
+set(CPACK_PACKAGE_CONTACT "shirmanovak410-ops@example.com")
+set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/DESCRIPTION_SOLVER")
+set(CPACK_GENERATOR "TGZ;DEB;RPM")
+
+include(CPack)
