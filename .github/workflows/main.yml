@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [ main, master ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main, master ]
 
@@ -13,7 +14,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y cmake g++
+        run: sudo apt-get update && sudo apt-get install -y cmake g++ rpm
       
       - name: Configure
         run: cmake -H. -B_build -DCMAKE_CXX_STANDARD=11
@@ -26,6 +27,26 @@ jobs:
           ./_build/example1
           ./_build/example2
           cat log.txt
+      
+      - name: Create packages (only for tags)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          cd _build
+          cpack -G "TGZ"
+          cpack -G "DEB"
+          cpack -G "RPM"
+          cd ..
+      
+      - name: Upload Release Assets
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            _build/*.tar.gz
+            _build/*.deb
+            _build/*.rpm
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   linux-clang:
     runs-on: ubuntu-latest
@@ -35,7 +56,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake clang
+          sudo apt-get install -y cmake clang rpm
       
       - name: Configure
         run: cmake -H. -B_build -DCMAKE_CXX_STANDARD=11 -DCMAKE_CXX_COMPILER=clang++
@@ -48,6 +69,26 @@ jobs:
           ./_build/example1
           ./_build/example2
           cat log.txt
+      
+      - name: Create packages (only for tags)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          cd _build
+          cpack -G "TGZ"
+          cpack -G "DEB"
+          cpack -G "RPM"
+          cd ..
+      
+      - name: Upload Release Assets
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            _build/*.tar.gz
+            _build/*.deb
+            _build/*.rpm
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   windows:
     runs-on: windows-latest
@@ -64,3 +105,19 @@ jobs:
         run: |
           .\_build\Release\example1.exe
           .\_build\Release\example2.exe
+      
+      - name: Create packages (only for tags)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          cd _build
+          cpack -G "ZIP"
+          cd ..
+      
+      - name: Upload Release Assets
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            _build/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
