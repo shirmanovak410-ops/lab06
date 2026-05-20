@@ -1,6 +1,6 @@
 [![CI](https://github.com/shirmanovak410-ops/lab06/actions/workflows/ci.yml/badge.svg)](https://github.com/shirmanovak410-ops/lab06/actions/workflows/ci.yml)
 # Lab06
-## Отчёт к lab06
+## Отчёт к lab06 (Tutorial)
 В рамках выполнения данной лабораторной работы мною были выполнены команды из tutorial с некоторыми изменениями:
 1) Скопирован репозиторий из lab05.
 2) Изменён CMakeLists.txt:
@@ -165,3 +165,242 @@ artifacts
 
 1 directory, 1 file
 ```
+
+## Homework 
+1) Были скопированы файлы solver из lab03:
+```bash
+$ cd ~/shirmanovak410-ops/workspace/projects/lab06
+$ cp -r ../lab03/formatter_lib .
+$ cp -r ../lab03/formatter_ex_lib .
+$ cp -r ../lab03/solver_lib .
+$ cp -r ../lab03/solver_application .
+```
+2) Создала DESCRIPTION_SOLVER-текстовый файл с описанием пакета, который попадает в установочный пакет:
+```bash
+$ cat > DESCRIPTION_SOLVER << 'EOF'
+> Solver for quadratic equations.
+
+Usage: solver
+Enter coefficients a, b, c (space-separated)
+Example: 1 -3 2
+
+The program solves ax² + bx + c = 0 and outputs x1 and x2.
+> EOF
+```
+3) Изменила CMakeLists.txt, добавив Solver и CPack:
+```bash
+$ cat >> CMakeLists.txt << 'EOF'
+> cmake_minimum_required(VERSION 3.10)
+project(print)
+
+set(PRINT_VERSION_MAJOR 0)
+set(PRINT_VERSION_MINOR 1)
+set(PRINT_VERSION_PATCH 0)
+set(PRINT_VERSION_TWEAK 0)
+set(PRINT_VERSION ${PRINT_VERSION_MAJOR}.${PRINT_VERSION_MINOR}.${PRINT_VERSION_PATCH}.${PRINT_VERSION_TWEAK})
+set(PRINT_VERSION_STRING "v${PRINT_VERSION}")
+
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+add_compile_options(-Wno-unused-variable -Wno-maybe-uninitialized -Wno-error)
+
+option(BUILD_EXAMPLES "Build examples" OFF)
+option(BUILD_TESTS "Build tests" OFF)
+
+add_library(print STATIC ${CMAKE_CURRENT_SOURCE_DIR}/sources/print.cpp)
+
+target_include_directories(print PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+
+if(BUILD_EXAMPLES)
+  file(GLOB EXAMPLE_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/examples/*.cpp")
+  foreach(EXAMPLE_SOURCE ${EXAMPLE_SOURCES})
+    get_filename_component(EXAMPLE_NAME ${EXAMPLE_SOURCE} NAME_WE)
+    add_executable(${EXAMPLE_NAME} ${EXAMPLE_SOURCE})
+    target_link_libraries(${EXAMPLE_NAME} print)
+    install(TARGETS ${EXAMPLE_NAME}
+      RUNTIME DESTINATION bin
+    )
+  endforeach()
+endif()
+
+if(BUILD_TESTS)
+  enable_testing()
+  add_subdirectory(third-party/gtest)
+  target_compile_options(gtest PRIVATE -Wno-error)
+  target_compile_options(gtest_main PRIVATE -Wno-error)
+  file(GLOB ${PROJECT_NAME}_TEST_SOURCES tests/*.cpp)
+  add_executable(check ${${PROJECT_NAME}_TEST_SOURCES})
+  target_link_libraries(check ${PROJECT_NAME} gtest_main)
+  add_test(NAME check COMMAND check)
+endif()
+
+install(TARGETS print
+    EXPORT print-config
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+)
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION include)
+install(EXPORT print-config DESTINATION cmake)
+
+
+add_subdirectory(formatter_lib)
+add_subdirectory(formatter_ex_lib)
+add_subdirectory(solver_lib)
+
+add_executable(solver solver_application/solver.cpp)
+target_link_libraries(solver formatter_ex solver_lib)
+
+install(TARGETS solver RUNTIME DESTINATION bin)
+set(CPACK_PACKAGE_NAME "solver")
+set(CPACK_PACKAGE_VERSION "1.0.0")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Quadratic equation solver")
+set(CPACK_PACKAGE_CONTACT "shirmanovak410-ops@example.com")
+set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/DESCRIPTION_SOLVER")
+
+if(APPLE)
+  set(CPACK_GENERATOR "DragNDrop;TGZ")
+elseif(WIN32)
+  set(CPACK_GENERATOR "ZIP")
+else()
+  set(CPACK_GENERATOR "TGZ;DEB;RPM")
+endif()
+
+include(CPack)
+> EOF
+```
+4) Изменён файл с добавлением permissions: contents: write и правильной командой cmake -S . -B_build, также были удалены RunTests, из-за возникновения ошибок:
+```bash
+$ cat > .github/workflows/main.yml << 'EOF'
+> name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+
+permissions:
+  contents: write
+
+jobs:
+  linux-gcc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake g++ rpm
+      
+      - name: Configure
+        run: cmake -S . -B_build -DCMAKE_CXX_STANDARD=11
+      
+      - name: Build
+        run: cmake --build _build
+      
+      - name: Create packages (only for tags)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          cd _build
+          cpack -G "TGZ"
+          cpack -G "DEB"
+          cpack -G "RPM"
+          cd ..
+      
+      - name: Upload Release Assets
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            _build/*.tar.gz
+            _build/*.deb
+            _build/*.rpm
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  linux-clang:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake clang rpm
+      
+      - name: Configure
+        run: cmake -S . -B_build -DCMAKE_CXX_STANDARD=11 -DCMAKE_CXX_COMPILER=clang++
+      
+      - name: Build
+        run: cmake --build _build
+      
+      - name: Create packages (only for tags)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          cd _build
+          cpack -G "TGZ"
+          cpack -G "DEB"
+          cpack -G "RPM"
+          cd ..
+      
+      - name: Upload Release Assets
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            _build/*.tar.gz
+            _build/*.deb
+            _build/*.rpm
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Configure
+        run: cmake -S . -B_build -DCMAKE_CXX_STANDARD=11
+      
+      - name: Build
+        run: cmake --build _build --config Release
+      
+      - name: Create packages (only for tags)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          cd _build
+          cpack -G "ZIP"
+          cd ..
+      
+      - name: Upload Release Assets
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            _build/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+> EOF
+```
+5)  Создание тега для автоматической сборки пакетов:
+```bash
+$ git tag v2.2.0
+$ git push origin v2.2.0
+Total 0 (delta 0), reused 0 (delta 0), pack-reused 0 (from 0)
+To https://github.com/shirmanovak410-ops/lab06
+ * [new tag]         v2.2.0 -> v2.2.0
+```
+6)В релизе v2.2.0 появились:
+
+solver-1.0.0-Linux.tar.gz
+
+solver-1.0.0-Linux.deb
+
+solver-1.0.0-Linux.rpm
+
+  <img width="1527" height="656" alt="image" src="https://github.com/user-attachments/assets/ca98b7b4-b497-4c8b-ba5b-48f847fef81e" />
